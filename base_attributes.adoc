@@ -1,0 +1,70 @@
+// すべてのAsciiDocファイルで共通のアトリビュートを定義
+//
+// PDF化に使用するテーマファイルを指定
+:pdf-theme: ./theme.yml
+// PDF用独自フォントのディレクトリを指定
+// ("GEM_FONTS_DIR"は、デフォルトフォントのPATH)
+:pdf-fontsdir: ./fonts;GEM_FONTS_DIR
+// 日本語と英語が混在した文書で、ワードラップ(改行位置)を修正する。
+// 日本語を含むPDFファイルを出力するために":scripts: cjk"の代わりに
+// "asciidoctor-pdf-cjk"アトリビュートを指定しているweb記事もあるが、
+// 現在はこのアトリビュートはメンテナンスが終了しており最新のasciidoctorでは使用できない。
+:scripts: cjk
+// 画像を格納するルートディレクトリ。
+// このアトリビュートを設定した場合、たとえば"images:hoge.png[]"のように記載したとき、
+// "<このファイルが存在するディレクトリ>/.asciidoctor/hoge.png"が挿入される。
+:imagesdir: image
+// asciidoctorが図の画像ファイルを出力するときの保存先ディレクトリ
+:imagesoutdir: {imagesdir}
+// :outdir: .asciidoctor
+// 章番号を振る
+:sectnums:
+// 目次を入れる
+:toc: left
+// 目次のタイトルを設定する。指定しない場合は"Table of Contents"になる。
+:toc-title: 目次
+// 目次に章番号を振る章見出しの深さ
+:toclevels: 3
+// アイコンをレンダリングするのに必要
+:icons: font
+// ソースコードのハイライトに使用するツールを指定
+:source-highlighter: rouge
+// ドキュメント仕様
+:asciidoctor:
+// 言語
+:lang: ja
+// ドキュメントのスタイルに冊子スタイルを指定（デフォルトは"article"）
+// "book"を指定すると、PDFに出力したときに表紙がつき、目次および章ごとに改ページされる。
+:doctype: book
+// bookスタイルで、章レベルのタイトルの先頭の文字列を指定する。
+// デフォルトだと"Chapter"がついて邪魔なので、何も指定しないことでこれを無効にする。
+:chapter-label:
+// 本文(第1章)の前の文章タイトルを"まえがき"にする。
+// 指定しない場合、本文の前に文章タイトルが入らない。目次にも記載されない。
+:preface-title: まえがき
+// Appendixのタイトルを"付録"とする
+:appendix-caption: 付録
+// 図(image)のキャプションを"図"とする(Figure)
+:figure-caption: 図
+// 表のキャプションを"表"とする(Table)
+:table-caption: 表
+// リストのキャプションを"リスト"とする。
+// なお:icons:アトリビュートが有効な場合、各種脚注のキャプションは
+// 対応するアトリビュートの設定にかかわらずアイコンで表示される。
+:listing-caption: リスト
+// Exampleキャプションを"例"とする
+:example-caption: 例
+// NOTEのキャプションを"注記"とする
+:note-caption: 注記
+// TIPのキャプションを"ヒント"とする
+:tip-caption: ヒント
+// COUTIONのキャプションを"注意"とする
+:caution-caption: 注意
+// WARNINGのキャプションを"警告"とする
+:warning-caption: 警告
+// IMPORTANTのキャプションを"重要"とする
+:important-caption: 重要
+// バージョンのラベルを"Ver."とする
+:version-label: Ver.
+// last-updateのラベルを"最終更新"とする
+:last-update-label: 最終更新

@@ -1,0 +1,272 @@
+= Docker環境構築
+include::base_attributes.adoc[]
+
+本章では、Dockerの実行環境を構築する手順を説明する。
+
+（Dockerの環境構築ってたまにしかやらないから、いざ必要になったときに覚えてないよね）
+
+== 環境
+
+// 設定アプリ->このシステムについて から取得
+OS:: Ubuntu 20.04.4 LTS
+OSの種類:: 64ビット
+
+== Docker Engineをインストール
+
+<<install-docker-engine-on-ubuntu, 公式ガイド>>に従ってインストールする。
+
+公式ガイドではDocker Engineのインストール方法がいくつか挙げられているが、ここでは最も一般的な、リポジトリを利用したインストール手順を実施する。
+
+=== 古いバージョンのアンインストール
+
+今回は古いバージョンがインストールされていないのでパス。
+
+=== リポジトリのセットアップ
+
+[source, bash, linenums]
+----
+# aptのパッケージインデックスを更新
+sudo apt update
+# aptがHTTPS経由でリポジトリにアクセスしパッケージをインストールできるようにする
+sudo apt install \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# Dockerの公式GPG鍵を追加
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# リポジトリをセットアップ
+# ここでは安定版（stable）リポジトリをセットアップする
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+----
+
+=== Docker Engineをインストール
+
+[source, bash, linenums]
+----
+# Docker Engine, containerd, Docker Composeの最新版をインストールする
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# インストールを確認
+# このコマンドはテスト用イメージをダウンロードし、コンテナ内で実行する。
+# コンテナが起動すると、メッセージを表示して終了する。
+sudo docker run hello-world
+----
+
+=== Rootlessモードの設定
+
+Dockerデーモンを使用するには、通常はroot権限が必要である。
+しかし、これはセキュリティ上のリスクが大きい。
+
+このため、root権限を必要とせずにDockerデーモンを使用することのできるRootlessモードを設定する。
+
+<<docker-rootless-mode>>に従い設定する。
+
+[source, bash, linenums]
+----
+# 以下のコマンドによりパッケージをインストールしたのち再ログインすること
+sudo apt update
+sudo apt install -y uidmap
+sudo apt install -y dbus-user-session
+----
+
+Dockerデーモンを停止 footnote:[うっかり停止し忘れてもRootlessのDockerデーモンをセットアップできたが、公式ガイドに従って停止しておいたほうがいい。]
+[source, bash, linenums]
+----
+sudo systemctl disable --now docker.service docker.socket
+----
+
+CAUTION: ここから先はDockerデーモンを使用したい一般ユーザで実行する。
+
+RootlessのDockerデーモンをセットアップ
+
+[source, bash, linenums]
+----
+# Dockerをインストールしたとき、
+# "/usr/bin"に"dockerd-rootless-setuptool.sh"が配置されている。
+# 以下のコマンドはそのシェルスクリプトを実行する。
+dockerd-rootless-setuptool.sh install
+----
+
+.``dockerd-rootless-setuptool.sh install``の出力
+[%collapsible]
+====
+[source, console, linenums]
+----
+toshi@toshi-FMVS90TRD2:~$ dockerd-rootless-setuptool.sh install
+[INFO] Creating /home/toshi/.config/systemd/user/docker.service
+[INFO] starting systemd service docker.service
++ systemctl --user start docker.service
++ sleep 3
++ systemctl --user --no-pager --full status docker.service
+● docker.service - Docker Application Container Engine (Rootless)
+     Loaded: loaded (/home/toshi/.config/systemd/user/docker.service; disabled; vendor preset: enabled)
+     Active: active (running) since Sun 2022-08-07 21:14:23 JST; 3s ago
+       Docs: https://docs.docker.com/go/rootless/
+   Main PID: 11877 (rootlesskit)
+     CGroup: /user.slice/user-1000.slice/user@1000.service/docker.service
+             ├─11877 rootlesskit --net=slirp4netns --mtu=65520 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --copy-up=/etc --copy-up=/run --propagation=rslave /usr/bin/dockerd-rootless.sh
+             ├─11888 /proc/self/exe --net=slirp4netns --mtu=65520 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --copy-up=/etc --copy-up=/run --propagation=rslave /usr/bin/dockerd-rootless.sh
+             ├─11907 slirp4netns --mtu 65520 -r 3 --disable-host-loopback --enable-sandbox --enable-seccomp 11888 tap0
+             ├─11914 dockerd
+             └─11931 containerd --config /run/user/1000/docker/containerd/containerd.toml --log-level info
+
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.531123876+09:00" level=warning msg="Your kernel does not support CPU realtime scheduler"
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.531161950+09:00" level=warning msg="Your kernel does not support cgroup blkio weight"
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.531174201+09:00" level=warning msg="Your kernel does not support cgroup blkio weight_device"
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.531505252+09:00" level=info msg="Loading containers: start."
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.610382093+09:00" level=info msg="Default bridge (docker0) is assigned with an IP address 172.17.0.0/16. Daemon option --bip can be used to set a preferred IP address"
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.655450662+09:00" level=info msg="Loading containers: done."
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.664241384+09:00" level=warning msg="Not using native diff for overlay2, this may cause degraded performance for building images: running in a user namespace" storage-driver=overlay2
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.664546494+09:00" level=info msg="Docker daemon" commit=a89b842 graphdriver(s)=overlay2 version=20.10.17
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.664741889+09:00" level=info msg="Daemon has completed initialization"
+ 8月 07 21:14:24 toshi-FMVS90TRD2 dockerd-rootless.sh[11914]: time="2022-08-07T21:14:24.740736572+09:00" level=info msg="API listen on /run/user/1000/docker.sock"
++ DOCKER_HOST=unix:///run/user/1000/docker.sock /usr/bin/docker version
+Client: Docker Engine - Community
+ Version:           20.10.17
+ API version:       1.41
+ Go version:        go1.17.11
+ Git commit:        100c701
+ Built:             Mon Jun  6 23:02:57 2022
+ OS/Arch:           linux/amd64
+ Context:           default
+ Experimental:      true
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          20.10.17
+  API version:      1.41 (minimum version 1.12)
+  Go version:       go1.17.11
+  Git commit:       a89b842
+  Built:            Mon Jun  6 23:01:03 2022
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          1.6.6
+  GitCommit:        10c12954828e7c7c9b6e0ea9b0c02b01407d3ae1
+ runc:
+  Version:          1.1.2
+  GitCommit:        v1.1.2-0-ga916309
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
++ systemctl --user enable docker.service
+Created symlink /home/toshi/.config/systemd/user/default.target.wants/docker.service → /home/toshi/.config/systemd/user/docker.service.
+[INFO] Installed docker.service successfully.
+[INFO] To control docker.service, run: `systemctl --user (start|stop|restart) docker.service`
+[INFO] To run docker.service on system startup, run: `sudo loginctl enable-linger toshi`
+
+[INFO] Creating CLI context "rootless"
+Successfully created context "rootless"
+
+[INFO] Make sure the following environment variables are set (or add them to ~/.bashrc):
+
+export PATH=/usr/bin:$PATH
+export DOCKER_HOST=unix:///run/user/1000/docker.sock
+----
+====
+
+上記の出力の末尾に記載されている内容を `$HOME/.bashrc` の末尾に以下のように追記する。
+
+[source, bash, linenums]
+----
+export PATH=/usr/bin:$PATH
+export DOCKER_HOST=unix:///run/user/1000/docker.sock # <1>
+----
+<1> `/run/user/1000` の部分の値は `$XDG_RUNTIME_DIR` に設定されている値である。 `$XDG_RUNTIME_DIR` は通常 `/run/user/$UID` に設定される。
+
+追記したら以下のコマンドで設定を反映する。
+
+[source, bash, linenums]
+----
+source $HOME/.bashrc
+----
+
+=== Rootlessモードの使用手順
+
+==== Dockerデーモンを起動
+
+Dockerデーモンを起動する。
+
+[source, bash, linenums]
+----
+systemctl --user start docker
+----
+
+上記コマンドだとシステムを起動するたびにDockerデーモンを起動する必要があるので、システム起動時に自動的に起動するように設定する。
+
+[source, bash, linenums]
+----
+systemctl --user enable docker
+sudo loginctl enable-linger $(whoami)
+----
+
+再ログインして `systemctl --user status docker` を実行し、 `Active:` が `active (running)` になっていればよい。
+
+動作確認する。
+
+[source, bash, linenums]
+----
+docker run hello-world
+----
+
+以下のように出力されればよい。
+
+.上記コマンドの実行結果
+[%collapsible]
+====
+[source, console, linenums]
+----
+toshi@toshi-FMVS90TRD2:~$ docker run hello-world
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+2db29710123e: Pull complete 
+Digest: sha256:53f1bbee2f52c39e41682ee1d388285290c5c8a76cc92b42687eecf38e0af3f0
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+----
+====
+
+==== クライアント
+
+**TODO** 書く。 `docker run` するときに必要な設定？
+
+[appendix]
+== Docker Engineのアンインストール
+
+https://docs.docker.com/engine/install/ubuntu/#uninstall-docker-engine[Uninstall Docker Engine - Install Docker Engine on Ubuntu | Docker Documentation] を参照。
+
+[bibliography]
+== 参考文献
+
+* [[[install-docker-engine-on-ubuntu, 1]]] https://docs.docker.com/engine/install/ubuntu/[Install Docker Engine on Ubuntu | Docker Documentation]
+* [[[install-docker-engine-on-ubuntu-jp, 2]]] https://matsuand.github.io/docs.docker.jp.onthefly/engine/install/ubuntu/[Docker Engine インストール（Ubuntu 向け） | Docker ドキュメント]
+** <<install-docker-engine-on-ubuntu>>の日本語訳だが、情報が最新のものであるとは限らないので、参考程度に留めること。
+* [[[docker-rootless-mode, 3]]] https://docs.docker.com/engine/security/rootless/[Run the Docker daemon as a non-root user (Rootless mode) | Docker Documentation]
+* [[[rootless-docker-for-nonroot, 4]]] https://e-penguiner.com/rootless-docker-for-nonroot/[【Rootless Docker】 Dockerを安全に一般ユーザで実行する | ぺんぎんや]
