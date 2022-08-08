@@ -6,6 +6,8 @@ include::base_attributes.adoc[]
 :gitea-web-server-port: 3000
 // giteaのsshサーバのポート番号
 :gitea-ssh-server-port: 2222
+// giteaのURL
+:gitea-url: http://{gitea-host-addr}:{gitea-web-server-port}
 
 本章では、Docker上にGitea環境を構築する手順を説明する。
 
@@ -42,12 +44,12 @@ docker run \
 <5> Giteaの設定ファイルを保存するボリュームをマウントする。
 <6> タイムゾーン情報をバインドする。 `ro` をつけることでコンテナからホスト側のファイルが変更されないようにする。
 <7> ローカルタイムゾーン情報をバインドする footnote:[`/etc/localtime` をバインドすることで問題が発生する場合があるとの情報<<docker-container-timezone-setting>>がある。] 。 `ro` は同上。
-<8> **TODO** 書く
+<8> 接続するブリッジネットワークを指定する。Jenkinsのコンテナと通信するために、Jenkinsのコンテナと同じネットワークを指定する。
 <9> コンテナのベースになるイメージを指定する。 https://hub.docker.com/r/gitea/gitea/tags[gitea/gitea Tags | Docker Hub] で最新のrootlessなイメージを使用した。
 
 == 初期設定
 
-http://{gitea-host-addr}:{gitea-web-server-port}/ にアクセスする。
+{gitea-url}/ にアクセスする。
 以下のとおり設定する。
 
 データベース設定::
@@ -61,7 +63,7 @@ Git LFSルートパス::: 空欄（Git LFSは使わないため）
 サーバードメイン::: {gitea-host-addr}
 SSHサーバーのポート::: デフォルト値({gitea-ssh-server-port})
 Gitea HTTPポート::: デフォルト値({gitea-web-server-port})
-GiteaのベースURL::: http://{gitea-host-addr}:{gitea-web-server-port}/
+GiteaのベースURL::: {gitea-url}/
 ログの保存先パス::: デフォルト値(/var/lib/gitea/data/log)
 オプション設定::
 メール設定::: 変更しない（使わないので）
@@ -72,7 +74,83 @@ GiteaのベースURL::: http://{gitea-host-addr}:{gitea-web-server-port}/
 * ユーザー名: giteaadmin
 * パスワード: gitea
 
+== 接続許可ホストリストにJenkinsサーバを追加
+
+Giteaが異なるホストと通信するには、設定ファイルで明示的に接続するホストを指定する必要がある。
+
+設定の詳細は https://docs.gitea.io/en-us/config-cheat-sheet/#webhook-webhook[Webhook - Config Cheat Sheet - Docs] を参照。
+
+. DockerのGiteaコンテナを実行中の場合は停止する
+* `docker stop gitea`
+. `/etc/gitea/app.ini` に以下の内容を追記する
+* コンテナを停止中の場合はコンテナからファイルを操作することができないので、代わりにホストからボリューム内のファイルを編集する。上記ディレクトリはボリューム `gitea-config` にマウントされている。
+** ボリュームのマウントポイントを確認するには `docker volume inspect ボリューム名`
+* 対象のファイルはrootでないと編集できないので、 `sudo vi ファイル名` などで編集する
++
+[source, ini, linenums]
+----
+; ホスト名が"jenkins"のサーバのみ接続を許可する
+[webhook]
+ALLOWED_HOST_LIST = jenkins
+----
+. Giteaコンテナを実行する
+* `docker start gitea`
+
+== WebhookによるPush-to-Build環境を構築する
+
+=== Jenkinsでの設定
+
+. ユーザのAPIトークンを生成
+.. JENKINS_URL/user/ユーザ名/configure にアクセス
+.. "APIトークン"からAPIトークンを生成
+// 11edb0268fbb1a5e341da5a4070ddb2fe9
+. ジョブを作成
+.. http://JENKINS_URL/view/all/newJob にアクセス
+.. ジョブ名を入力
+* 半角英数字のみを使用すること。ここで指定した名前がそのままURLエンコードされてジョブを表すパスとして使用されるため、スペースを使用するのは非推奨。
+.. "フリースタイル・プロジェクトのビルド"を選択して btn:[OK]
+.. 以下のとおり設定
++
+説明:: よしなに入力
+古いビルドの破棄::
+ビルドの保存最大数::: ビルドの記録が無制限に増え続けるのを防ぐために、適当に10くらいに設定
+ソースコード管理:: Git
+リポジトリURL::: GiteaのリポジトリのURL
+認証情報::: <<add-gitea-credential-to-jenkins, ※>>
+ビルドするブランチ::: ビルド対象のブランチを指定
+ビルド・トリガ:: リモートからビルド
+認証トークン::: 適当な文字列
+ビルド:: ビルド手順を指定
+NOTE: 最初はWebhookが機能することを確認するために、echoするだけのスクリプトを実行するとよい。
+
+[[add-gitea-credential-to-jenkins]]
+※JenkinsにGiteaの認証情報を追加するには、次のとおり設定する。
+
+種類:: ユーザー名とパスワード
+スコープ:: グローバル
+ユーザー名:: Giteaのユーザ名
+パスワード:: Giteaのパスワード
+ID:: よしなに入力する。認証情報を識別するのに使用する。
+説明:: よしなに入力
+
+=== Giteaでの設定
+
+. {gitea-url}/ユーザ名/リポジトリ名/settings/hooks を開く
+. btn:[Webhookを追加] -> Gitea を選択
+. 次のとおり設定
++
+ターゲットURL::  __++http://<Jenkinsのユーザ名>:<JenkinsのユーザのAPIトークン>@JENKINS_URL/job/<Jenkinsのジョブ名>/build?token=<Jenkinsのジョブの認証トークン>++__
+HTTPメソッド:: POST footnote:[ここは別にGETでもいい気がする。]
+POST Content Type:: application/json
+Secret:: 空欄
+トリガー:: プッシュのイベント
+ブランチフィルター:: ビルド対象のブランチを指定
++
+. 設定したら、 btn:[テスト配信] でJenkinsのジョブが実行されることを確認する
+
 [bibliography]
 == 参考文献
 
 * [[[docker-container-timezone-setting, 1]]] https://qiita.com/rururu_kenken/items/972314402d588e073d40[Dockerコンテナのタイムゾーン変更方法 - Qiita]
+* [[[ci-cd-by-gitea-and-jenkins, 2]]] https://qiita.com/bashaway/items/4368b2fd46003d674223[コピペでつくるGitサーバーとCI/CD環境（Gitea＋Jenkins） - Qiita]
+* [[[github-webhook-to-jenkins, 3]]] https://blue-38.hatenablog.com/entry/2019/09/16/215006[【Jenkins】Webhookを設定してみる - ぴよ丸水産]
