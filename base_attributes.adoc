@@ -92,3 +92,9 @@
 // 相互参照の見出しの書式を指定
 // "short"の場合は"図2.3"のような書式になる
 :xrefstyle: short
+// セクションを相互参照したときに参照番号の前に配置する文字列
+:section-refsig: 章
+// チャプターを相互参照したときに参照番号の前に配置する文字列
+:chapter-refsig: 章
+// 付録を相互参照したときに参照番号の前に配置する文字列
+:appendix-refsig: {appendix-caption}
