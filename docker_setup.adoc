@@ -50,13 +50,16 @@ echo \
 [source, bash, linenums]
 ----
 # Docker Engine, containerd, Docker Composeの最新版をインストールする
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+$ sudo apt update
+$ sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+# バージョン確認
+$ docker --version
+Docker version 20.10.17, build 100c701
 
 # インストールを確認
 # このコマンドはテスト用イメージをダウンロードし、コンテナ内で実行する。
 # コンテナが起動すると、メッセージを表示して終了する。
-sudo docker run hello-world
+$ sudo docker run hello-world
 ----
 
 === Rootlessモードの設定
