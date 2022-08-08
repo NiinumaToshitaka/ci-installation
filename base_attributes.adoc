@@ -19,11 +19,17 @@
 // :outdir: .asciidoctor
 // 章番号を振る
 :sectnums:
+// 章番号を振る章見出しの深さ
+:sectnumlevels: 3
+// 章タイトルにアンカーをつける
+:sectanchors:
+// 章タイトルをリンクにする
+// :sectlinks:
 // 目次を入れる
 :toc: left
 // 目次のタイトルを設定する。指定しない場合は"Table of Contents"になる。
 :toc-title: 目次
-// 目次に章番号を振る章見出しの深さ
+// 目次に表示する章見出しの深さ
 :toclevels: 3
 // アイコンをレンダリングするのに必要
 :icons: font
@@ -64,7 +70,25 @@
 :warning-caption: 警告
 // IMPORTANTのキャプションを"重要"とする
 :important-caption: 重要
-// バージョンのラベルを"Ver."とする
-:version-label: Ver.
 // last-updateのラベルを"最終更新"とする
 :last-update-label: 最終更新
+// gitのコミットID
+// ビルドする時に引数で指定する
+:commit-hash: unknown
+// gitのコミット日時
+// ビルドする時に引数で指定する
+:commit-date: unknown
+// バージョン番号
+:revnumber: {commit-hash}
+// バージョン日時
+:revdate: {commit-date}
+// バージョンのラベルを指定
+:version-label: commit:
+// 最終更新日時をドキュメントに含めない
+// バージョン情報にコミットのIDと日時を埋め込むので、更新日時の情報は不要
+:reproducible:
+// ボタンマクロとキーボードマクロを有効にする
+:experimental:
+// 相互参照の見出しの書式を指定
+// "short"の場合は"図2.3"のような書式になる
+:xrefstyle: short
