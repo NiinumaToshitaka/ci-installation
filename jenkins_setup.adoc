@@ -1,5 +1,10 @@
+[[jenkins-setup]]
 = Jenkins環境構築
 include::base_attributes.adoc[]
+// jenkinsのホストのIPアドレス
+:jenkins-web-server-host-addr: localhost
+// jenkinsのポート番号
+:jenkins-port: 8080
 
 本章では、Docker上にJenkins環境を構築する手順を説明する。
 
@@ -11,6 +16,7 @@ xref:docker_setup.adoc#docker-setup[Docker環境構築] に従い環境構築実
 
 https://www.jenkins.io/doc/book/installing/docker/ に従う。
 
+[[create-bridge-network]]
 === ブリッジネットワーク作成
 
 Dockerコンテナ間で通信するにはブリッジネットワークを作成する必要があるので作成する。
@@ -25,18 +31,20 @@ $ docker network create jenkins
 
 Jenkinsを実行する。
 
-[source, bash, linenums]
+[source, bash, options="linenums", subs="attributes+"]
 ----
 docker run \
-    --name jenkins \ # <1>
-    -p 8080:8080 \ # <2>
-    --mount type=volume,source=jenkins-volume,destination=/var/jenkins_home \ # <3>
-    jenkins/jenkins:lts-jdk11 # <4>
+    --name jenkins \# <1>
+    -p 8080:{jenkins-port} \# <2>
+    --mount type=volume,source=jenkins-volume,destination=/var/jenkins_home \# <3>
+    --network jenkins \# <4>
+    jenkins/jenkins:lts-jdk11 # <5>
 ----
 <1> コンテナの名前を指定する。指定しない場合はランダムな名前がつけられる。名前がランダムだと何のためのコンテナなのかわからないので指定する。
 <2> 公開するポート番号を指定する。
 <3> データを保存するボリュームを指定する。ボリュームはホスト側の `~/.local/share/docker/volumes/ボリューム名/` に作成される。 footnote:[ボリューム名を指定しなかった場合はランダムな文字列（実際はハッシュ値）が名前に使用される。コンテナにマウントされているボリュームは `docker inspect コンテナID` で出力される内容の"Mounts"に記載されている。]
-<4> コンテナのベースになるDockerイメージを指定する。使用するイメージは https://hub.docker.com/r/jenkins/jenkins[jenkins/jenkins - Docker Image | Docker Hub] を参照。
+<4> コンテナを<<create-bridge-network>>で作成したネットワークに接続する。
+<5> コンテナのベースになるDockerイメージを指定する。使用するイメージは https://hub.docker.com/r/jenkins/jenkins[jenkins/jenkins - Docker Image | Docker Hub] を参照。
 
 上記コマンドを実行すると、以下のようにadminユーザの初期パスワードが記載されたファイルへのパスが表示される。
 
@@ -77,6 +85,7 @@ $ exit
 
 === Unlock Jenkins
 
+http://{jenkins-web-server-host-addr}:{jenkins-port}/ にアクセスする。
 adminユーザの初期パスワードを入力する。
 
 === Customize Jenkins
@@ -89,10 +98,15 @@ adminユーザの初期パスワードを入力する。
 管理者ユーザを作成する。
 ユーザー名、パスワード、フルネーム、メールアドレスをよしなに設定する。
 
+ここでは以下のとおり設定したものとする。
+
+* ユーザー名: admin
+* パスワード: jenkins
+
 === Instance Configuration
 
 JenkinsのURLを指定する。
-ここでは外部に公開しないので http://localhost:8080/ とする。
+ここでは外部に公開しないので http://{jenkins-web-server-host-addr}:{jenkins-port}/ とする。
 
 [appendix]
 == Jenkinsノード内でDockerコマンドを実行する
@@ -105,17 +119,17 @@ NOTE: どういう操作をしているのかよくわかってない。
 [source, bash, linenums]
 ----
 docker run \
-  --name jenkins-docker \ # <1>
-  --rm \ # <2>
-  --detach \ # <3>
-  --privileged \ # <4>
-  --network jenkins \ # <5>
-  --network-alias docker \ # <6>
-  --env DOCKER_TLS_CERTDIR=/certs \ #<7>
-  --volume jenkins-docker-certs:/certs/client \ # <8>
-  --volume jenkins-data:/var/jenkins_home \ # <9>
-  --publish 2376:2376 \ # <10>
-  docker:dind \ # <11>
+  --name jenkins-docker \# <1>
+  --rm \# <2>
+  --detach \# <3>
+  --privileged \# <4>
+  --network jenkins \# <5>
+  --network-alias docker \# <6>
+  --env DOCKER_TLS_CERTDIR=/certs \#<7>
+  --volume jenkins-docker-certs:/certs/client \# <8>
+  --volume jenkins-data:/var/jenkins_home \# <9>
+  --publish 2376:2376 \# <10>
+  docker:dind \# <11>
   --storage-driver overlay2 # <12>
 ----
 <1> (オプション) イメージの実行に使用する Docker コンテナー名を指定します。デフォルトでは、Docker はコンテナーの一意の名前を生成します。
