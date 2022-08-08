@@ -257,6 +257,8 @@ For more examples and ideas, visit:
 ----
 ====
 
+NOTE: コンテナやイメージが置かれるdata-rootは、デフォルトでは `~/.local/share/docker` となる。
+
 ==== クライアント
 
 **TODO** 書く。 `docker run` するときに必要な設定？
