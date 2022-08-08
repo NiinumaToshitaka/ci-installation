@@ -2,4 +2,3 @@
 .asciidoctor
 # AsciiDocファイルから生成するファイル
 image/*.svg
-build/
