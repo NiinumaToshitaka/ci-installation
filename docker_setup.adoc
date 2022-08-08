@@ -263,6 +263,35 @@ NOTE: コンテナやイメージが置かれるdata-rootは、デフォルト�
 
 **TODO** 書く。 `docker run` するときに必要な設定？
 
+== トラブルシューティング
+
+=== コンテナ内でpingを使用できない
+
+デフォルトでは `ping` が一般ユーザでは実行できないようになっている。
+rootユーザであれば実行できるので、場当たり的にはその方法で対応する。
+
+[source, bash, linenums]
+----
+# rootでコンテナにログイン
+$ docker exec -u 0 -it コンテナ名 /bin/bash
+$ whoami
+root
+# rootだとpingが使える
+$ ping -c 3 127.0.0.1
+----
+
+ちゃんと設定するのであれば、 https://docs.docker.com/engine/security/rootless/#routing-ping-packets[Routing ping packets - Run the Docker daemon as a non-root user (Rootless mode) | Docker Documentation] に従い設定する。
+
+=== コンテナ間で通信できない
+
+Dockerでは、同一のブリッジネットワークに複数のコンテナを接続していると、コンテナごとにコンテナ間の通信でのみ有効なIPアドレスが設定される。
+通信先のホストに"localhost"を指定すると、そのコンテナ内を指すため、他のコンテナと通信できない。
+よって、ローカルに複数のコンテナを起動している場合でも、通信先のホストにはコンテナに設定されたIPアドレスまたはホスト名を指定する必要がある。
+
+各コンテナに割り当てられているIPアドレスは `docker network inspect ブリッジネットワーク名` の"Containers"セクションで確認できる。
+
+各コンテナのIPアドレスは"Containers"セクションの"Name"で名前解決できるので、例えば"gitea"というNameをもつコンテナがある場合は `ping gitea` で導通確認できる。
+
 [appendix]
 == Docker Engineのアンインストール
 
