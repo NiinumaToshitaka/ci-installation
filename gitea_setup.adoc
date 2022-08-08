@@ -1,0 +1,78 @@
+= Gitea環境構築
+include::base_attributes.adoc[]
+// giteaのホストのIPアドレス
+:gitea-host-addr: localhost
+// giteaのwebサーバのポート番号
+:gitea-web-server-port: 3000
+// giteaのsshサーバのポート番号
+:gitea-ssh-server-port: 2222
+
+本章では、Docker上にGitea環境を構築する手順を説明する。
+
+== 環境
+
+xref:docker_setup.adoc#docker-setup[Docker環境構築] および xref:jenkins_setup.adoc#jenkins-setup[Jenkins環境構築] に従い環境構築実施済み。
+
+== インストール
+
+https://docs.gitea.io/en-us/install-with-docker-rootless/[Installation with Docker (rootless) - Docs | Gitea] に従う。
+ただし、Docker Composeはインストールしていないので、手動で `docker run` する。
+
+// コードブロック内でアトリビュートの置換を有効にするために、
+// 'subs="attributes+"'を指定する。
+// "subs"を指定する時に"linenums"も指定する場合は
+// 'options="linenums"'と指定する必要がある。
+[source, bash, options="linenums", subs="attributes+"]
+----
+docker run \
+    --name gitea \# <1>
+    -p 3000:{gitea-web-server-port} \# <2>
+    -p 2222:{gitea-ssh-server-port} \# <3>
+    --mount type=volume,source=gitea-data,destination=/var/lib/gitea \# <4>
+    --mount type=volume,source=gitea-config,destination=/etc/gitea \# <5>
+    --mount type=bind,source=/etc/timezone,destination=/etc/timezone:ro \# <6>
+    --mount type=bind,source=/etc/localtime,destination=/etc/localtime:ro \# <7>
+    --network jenkins \# <8>
+    gitea/gitea:1.17.0-rootless # <9>
+----
+<1> コンテナの名前を設定する。
+<2> Webサーバのポート番号をバインドする。"{gitea-web-server-port}"はGiteaの初期設定画面でのデフォルト値。
+<3> SSHサーバのポート番号をバインドする。"{gitea-ssh-server-port}"はGiteaの初期設定画面でのデフォルト値。
+<4> Giteaのデータを保存するボリュームをマウントする。
+<5> Giteaの設定ファイルを保存するボリュームをマウントする。
+<6> タイムゾーン情報をバインドする。 `ro` をつけることでコンテナからホスト側のファイルが変更されないようにする。
+<7> ローカルタイムゾーン情報をバインドする footnote:[`/etc/localtime` をバインドすることで問題が発生する場合があるとの情報<<docker-container-timezone-setting>>がある。] 。 `ro` は同上。
+<8> **TODO** 書く
+<9> コンテナのベースになるイメージを指定する。 https://hub.docker.com/r/gitea/gitea/tags[gitea/gitea Tags | Docker Hub] で最新のrootlessなイメージを使用した。
+
+== 初期設定
+
+http://{gitea-host-addr}:{gitea-web-server-port}/ にアクセスする。
+以下のとおり設定する。
+
+データベース設定::
+データベースのタイプ::: SQLite3
+パス::: デフォルト値(/var/lib/gitea/data/gitea.db)
+基本設定::
+サイトタイトル::: よしなに入力
+リポジトリのルートパス::: デフォルト値(/var/lib/gitea/git/repositories)
+Git LFSルートパス::: 空欄（Git LFSは使わないため）
+実行ユーザー名::: デフォルト値(git)
+サーバードメイン::: {gitea-host-addr}
+SSHサーバーのポート::: デフォルト値({gitea-ssh-server-port})
+Gitea HTTPポート::: デフォルト値({gitea-web-server-port})
+GiteaのベースURL::: http://{gitea-host-addr}:{gitea-web-server-port}/
+ログの保存先パス::: デフォルト値(/var/lib/gitea/data/log)
+オプション設定::
+メール設定::: 変更しない（使わないので）
+サーバーと外部サービスの設定::: 変更しない（使わないので）
+管理者アカウントの設定:::
+よしなに設定。ただし管理者ユーザー名には"admin"が既に予約されているため使用できない。
+ここでは以下のとおり設定したものとする。
+* ユーザー名: giteaadmin
+* パスワード: gitea
+
+[bibliography]
+== 参考文献
+
+* [[[docker-container-timezone-setting, 1]]] https://qiita.com/rururu_kenken/items/972314402d588e073d40[Dockerコンテナのタイムゾーン変更方法 - Qiita]

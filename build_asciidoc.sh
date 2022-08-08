@@ -5,6 +5,7 @@
 # ビルド対象のAsciiDocファイル
 target_files[0]=docker_setup.adoc
 target_files[1]=jenkins_setup.adoc
+target_files[2]=gitea_setup.adoc
 # ビルド後のファイルを格納するディレクトリ
 readonly destination=build/
 # 変換後のAsciiDocファイルに情報を埋め込む対象のコミット
