@@ -1,0 +1,8 @@
+= Jenkins環境構築
+include::base_attributes.adoc[]
+
+本章では、Docker上にJenkins環境を構築する手順を説明する。
+
+== 環境
+
+xref:docker_setup.adoc#docker-setup[Docker環境構築] に従い環境構築実施済み。
