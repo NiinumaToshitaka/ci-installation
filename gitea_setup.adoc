@@ -90,6 +90,7 @@ Giteaが異なるホストと通信するには、設定ファイルで明示的
 [source, ini, linenums]
 ----
 ; ホスト名が"jenkins"のサーバのみ接続を許可する
+; 複数のホストを指定する場合は","で区切る
 [webhook]
 ALLOWED_HOST_LIST = jenkins
 ----
@@ -98,6 +99,8 @@ ALLOWED_HOST_LIST = jenkins
 
 == WebhookによるPush-to-Build環境を構築する
 
+NOTE: JenkinsとGiteaでそれぞれ互いに通信するための認証情報を必要とするので、Push-to-Build専用のアカウントを作成したほうがよさそう。
+
 === Jenkinsでの設定
 
 . ユーザのAPIトークンを生成
@@ -105,7 +108,7 @@ ALLOWED_HOST_LIST = jenkins
 .. "APIトークン"からAPIトークンを生成
 // 11edb0268fbb1a5e341da5a4070ddb2fe9
 . ジョブを作成
-.. http://JENKINS_URL/view/all/newJob にアクセス
+.. ++JENKINS_URL/view/all/newJob++ にアクセス
 .. ジョブ名を入力
 * 半角英数字のみを使用すること。ここで指定した名前がそのままURLエンコードされてジョブを表すパスとして使用されるため、スペースを使用するのは非推奨。
 .. "フリースタイル・プロジェクトのビルド"を選択して btn:[OK]
@@ -135,7 +138,7 @@ ID:: よしなに入力する。認証情報を識別するのに使用する。
 
 === Giteaでの設定
 
-. {gitea-url}/ユーザ名/リポジトリ名/settings/hooks を開く
+. ++{gitea-url}/ユーザ名/リポジトリ名/settings/hooks++ を開く
 . btn:[Webhookを追加] -> Gitea を選択
 . 次のとおり設定
 +
