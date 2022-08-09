@@ -273,7 +273,7 @@ rootユーザであれば実行できるので、場当たり的にはその方�
 [source, bash, linenums]
 ----
 # rootでコンテナにログイン
-$ docker exec -u 0 -it コンテナ名 /bin/bash
+$ docker exec -u 0 -it コンテナ名 bash
 $ whoami
 root
 # rootだとpingが使える

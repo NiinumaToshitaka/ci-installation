@@ -27,9 +27,9 @@ $ docker network create jenkins
 7ed5933dba63bd8a096d1ecab7d4bdcfb0bd862f4e0fb93bb3c4d39a4a768644
 ----
 
-=== 試しに実行してみる
+=== 実行
 
-Jenkinsを実行する。
+Jenkinsコンテナを実行する。
 
 [source, bash, options="linenums", subs="attributes+"]
 ----
@@ -71,7 +71,7 @@ CONTAINER ID   IMAGE                       COMMAND                  CREATED     
 137f055ee35e   jenkins/jenkins:lts-jdk11   "/usr/bin/tini -- /u…"   17 minutes ago   Up 17 minutes   0.0.0.0:8080->8080/tcp, :::8080->8080/tcp, 50000/tcp   determined_archimedes
 
 # 上で確認したコンテナ名を指定してシェルを起動
-$ docker exec -it determined_archimedes /bin/bash
+$ docker exec -it determined_archimedes bash
 
 # ファイルを参照
 $ cat /var/jenkins_home/secrets/initialAdminPassword
