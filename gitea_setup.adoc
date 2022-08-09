@@ -89,10 +89,10 @@ Giteaが異なるホストと通信するには、設定ファイルで明示的
 +
 [source, ini, linenums]
 ----
-; ホスト名が"jenkins"のサーバのみ接続を許可する
+; ホスト名が"jenkins-blueocean"のサーバのみ接続を許可する
 ; 複数のホストを指定する場合は","で区切る
 [webhook]
-ALLOWED_HOST_LIST = jenkins
+ALLOWED_HOST_LIST = jenkins-blueocean
 ----
 . Giteaコンテナを実行する
 * `docker start gitea`
@@ -106,7 +106,7 @@ NOTE: JenkinsとGiteaでそれぞれ互いに通信するための認証情報�
 . ユーザのAPIトークンを生成
 .. JENKINS_URL/user/ユーザ名/configure にアクセス
 .. "APIトークン"からAPIトークンを生成
-// 11edb0268fbb1a5e341da5a4070ddb2fe9
+// 11f5164317b78bfbae75179b156dc4f267
 . ジョブを作成
 .. ++JENKINS_URL/view/all/newJob++ にアクセス
 .. ジョブ名を入力

@@ -14,10 +14,12 @@ xref:docker_setup.adoc#docker-setup[Docker環境構築] に従い環境構築実
 
 == インストール
 
-https://www.jenkins.io/doc/book/installing/docker/ に従う。
+https://www.jenkins.io/doc/book/installing/docker/#on-macos-and-linux に従う。
+
+以下の説明は一部で上記ドキュメントを機械翻訳している。
 
 [[create-bridge-network]]
-=== ブリッジネットワーク作成
+=== ブリッジネットワークを作成
 
 Dockerコンテナ間で通信するにはブリッジネットワークを作成する必要があるので作成する。
 
@@ -27,40 +29,122 @@ $ docker network create jenkins
 7ed5933dba63bd8a096d1ecab7d4bdcfb0bd862f4e0fb93bb3c4d39a4a768644
 ----
 
-=== 実行
+=== "docker:dind"イメージを実行
 
-Jenkinsコンテナを実行する。
+Docker内部のコンテナでJenkinsを実行しているとき、デフォルトではDockerコマンドを使用することができない。
+Jenkinsコンテナ内でDockerコマンドを使用するには、以下の手順で `docker:dind` イメージを実行する。
 
-[source, bash, options="linenums", subs="attributes+"]
+[NOTE]
+====
+DockerコンテナからDockerを使うには、Docker in Docker(DinD)とDocker outside of Docker (DooD)の2種類の方法がある。
+一般にCI用途ではDooDを使うのが好ましいとされているが、Jenkins公式ドキュメントにはDinDを使用する手順が記載されているので、これに従う。
+====
+
+[source, bash, linenums]
 ----
 docker run \
-    --name jenkins \# <1>
-    -p 8080:{jenkins-port} \# <2>
-    --mount type=volume,source=jenkins-volume,destination=/var/jenkins_home \# <3>
-    --network jenkins \# <4>
-    jenkins/jenkins:lts-jdk11 # <5>
+  --name jenkins-docker \# <1>
+  --rm \# <2>
+  --detach \# <3>
+  --privileged \# <4>
+  --network jenkins \# <5>
+  --network-alias docker \# <6>
+  --env DOCKER_TLS_CERTDIR=/certs \#<7>
+  --volume jenkins-docker-certs:/certs/client \# <8>
+  --volume jenkins-data:/var/jenkins_home \# <9>
+  --publish 2376:2376 \# <10>
+  docker:dind \# <11>
+  --storage-driver overlay2 # <12>
 ----
-<1> コンテナの名前を指定する。指定しない場合はランダムな名前がつけられる。名前がランダムだと何のためのコンテナなのかわからないので指定する。
-<2> 公開するポート番号を指定する。
-<3> データを保存するボリュームを指定する。ボリュームはホスト側の `~/.local/share/docker/volumes/ボリューム名/` に作成される。 footnote:[ボリューム名を指定しなかった場合はランダムな文字列（実際はハッシュ値）が名前に使用される。コンテナにマウントされているボリュームは `docker inspect コンテナID` で出力される内容の"Mounts"に記載されている。]
-<4> コンテナを<<create-bridge-network>>で作成したネットワークに接続する。
-<5> コンテナのベースになるDockerイメージを指定する。使用するイメージは https://hub.docker.com/r/jenkins/jenkins[jenkins/jenkins - Docker Image | Docker Hub] を参照。
+<1> (オプション)イメージの実行に使用するDockerコンテナ名を指定します。デフォルトでは、Dockerはコンテナの一意の名前を生成します。
+<2> (オプション)シャットダウン時にDockerコンテナ(Dockerイメージのインスタンス)を自動的に削除します。
+<3> (オプション)バックグラウンドでDockerコンテナを実行します。このインスタンスは、後で `docker stop jenkins-docker` を実行して停止できます。
+<4> DockerでDockerを実行するには、現在、正しく機能するために特権アクセスが必要です。この要件は、新しいLinuxカーネルバージョンで緩和される可能性があります。
+<5> これは、前の手順で作成したネットワークに対応しています。
+<6> Dockerコンテナ内のDockerを `jenkins` ネットワーク内のホスト名 `docker` として使用できるようにします。
+<7> DockerサーバーでのTLSの使用を有効にします。特権コンテナを使用するため、これをお勧めしますが、以下で説明する共有ボリュームを使用する必要があります。この環境変数は、Docker TLS証明書が管理されるルートディレクトリを制御します。
+<8> コンテナ内の `/certs/client` ディレクトリを、上記で作成した `jenkins-docker-certs` という名前のDockerボリュームにマップします。
+<9> コンテナ内の `/var/jenkins_home` ディレクトリを `jenkins-data` という名前のDockerボリュームにマップします。これにより、このDockerコンテナのDockerデーモンによって制御される他のDockerコンテナがJenkinsからデータをマウントできるようになります。
+<10> （オプション）ホストマシンのDockerデーモンポートを公開します。これは、ホストマシンで `docker` コマンドを実行して、この内部Dockerデーモンを制御する場合に役立ちます。
+<11> `docker:dind` イメージ自体。このイメージは、コマンド `docker image pull docker:dind` を使用して、実行する前にダウンロードできます。
+<12> Dockerボリュームのストレージドライバー。サポートされているオプションについては、「Dockerストレージドライバー」を参照してください。
 
-上記コマンドを実行すると、以下のようにadminユーザの初期パスワードが記載されたファイルへのパスが表示される。
+[[customise-official-jenkins-docker-image]]
+=== 公式のJenkins Dockerイメージをカスタム
 
-[source, console, linenums]
+. 以下の内容でDockerfileを作成する
++
+[source, dockerfile, linenums]
+.Dockerfile
 ----
-Jenkins initial setup is required. An admin user has been created and a password generated.
-Please use the following password to proceed to installation:
-
-b528f9670cf44323917d05f83af7108d
-
-This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
+FROM jenkins/jenkins:2.346.2-jdk11
+USER root
+RUN apt-get update && apt-get install -y lsb-release
+RUN curl -fsSLo /usr/share/keyrings/docker-archive-keyring.asc \
+  https://download.docker.com/linux/debian/gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/usr/share/keyrings/docker-archive-keyring.asc] \
+  https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+RUN apt-get update && apt-get install -y docker-ce-cli
+USER jenkins
+RUN jenkins-plugin-cli --plugins "blueocean:1.25.6 docker-workflow:1.29"
+----
+. 作成したDockerfileからDockerイメージをビルドする
++
+[source, bash, linenums]
+----
+docker build -t myjenkins-blueocean:2.346.2-1 .
 ----
 
-このファイルはコンテナ内のファイルシステムに保存されている。
-このファイルを参照するには、実行中のコンテナに接続する。
-（実際にはマウントしているボリュームに保存されているので、ホスト側からボリュームの中のファイルを直接参照することもできる）
+=== 作成したDockerイメージを実行
+
+以下のコマンドにより、<<customise-official-jenkins-docker-image>>でビルドしたDockerイメージを実行する。
+
+[source, bash, linenums]
+----
+docker run \
+  --name jenkins-blueocean \# <1>
+  --restart=on-failure \# <2>
+  --detach \# <3>
+  --network jenkins \# <4>
+  --env DOCKER_HOST=tcp://docker:2376 \# <5>
+  --env DOCKER_CERT_PATH=/certs/client \
+  --env DOCKER_TLS_VERIFY=1 \
+  --publish 8080:8080 \# <6>
+  --publish 50000:50000 \# <7>
+  --volume jenkins-data:/var/jenkins_home \# <8>
+  --volume jenkins-docker-certs:/certs/client:ro \# <9>
+  myjenkins-blueocean:2.346.2-1 # <10>
+----
+<1> （オプション）DockerイメージのこのインスタンスのDockerコンテナ名を指定します。
+<2> コンテナが停止した場合は、常に再起動します。手動で停止した場合は、Dockerデーモンが再起動したとき、またはコンテナ自体が手動で再起動したときにのみ再起動します。
+<3> （オプション）現在のコンテナをバックグラウンドで実行し（つまり「デタッチ」モード）、コンテナIDを出力します。このオプションを指定しない場合、このコンテナの実行中のDockerログがターミナルウィンドウに出力されます。
+<4> このコンテナを、<<create-bridge-network>>で定義した``jenkins``ネットワークに接続します。これにより、Dockerデーモンが、ホスト名``docker``を介してこのJenkinsコンテナで使用できるようになります。
+<5> 前の手順でDockerデーモンに接続するために``docker``, ``docker-compose``, およびその他のDockerツールで使用される環境変数を指定します。
+<6> 現在のコンテナのポート8080をホストマシンのポート8080にマップ（つまり「公開」）します。最初の数字はホストのポートを表し、最後の数字はコンテナのポートを表します。したがって、このオプションに``-p 49000:8080``を指定した場合、ポート49000を介してホストマシン上のJenkinsにアクセスすることになります。
+<7> （オプション）現在のコンテナのポート50000をホストマシンのポート50000にマップします。これは、他のマシンに1つ以上のインバウンドJenkinsエージェントをセットアップし、それが``jenkins-blueocean``コンテナ（Jenkins「コントローラー」）と対話する場合にのみ必要です。インバウンドJenkinsエージェントは、デフォルトでTCPポート50000を介してJenkinsコントローラーと通信します。 Jenkinsコントローラーのこのポート番号は、[グローバルセキュリティの構成]ページから変更できます。 Jenkinsコントローラーの**インバウンドJenkinsエージェントのTCPポート**を（たとえば）51000に変更する場合は、（この``docker run…``コマンドを使用して）Jenkinsを再実行し、この「publish」オプションを何かで指定する必要があります。``--publish 52000:51000``のように、最後の値はJenkinsコントローラーでこの変更された値と一致し、最初の値はJenkinsコントローラーをホストしているマシンのポート番号です。インバウンドJenkinsエージェントは、そのポート（この例では52000）でJenkinsコントローラーと通信します。 WebSocketエージェントはこの構成を必要としないことに注意してください。
+<8> コンテナ内の``/var/jenkins_home``ディレクトリを``jenkins-data``という名前のDockerボリュームにマップします。
+footnote:[ボリュームはホスト側の``~/.local/share/docker/volumes/ボリューム名/``に作成される。]
+footnote:[コンテナにマウントされているボリュームは``docker inspect コンテナID``で出力される内容の"Mounts"に記載されている。]
+``/var/jenkins_home``ディレクトリをDockerボリュームにマッピングする代わりに、このディレクトリをマシンのローカルファイルシステム上のディレクトリにマッピングすることもできます。たとえば、オプション
+``--volume $HOME/jenkins:/var/jenkins_home``は、コンテナの``/var/jenkins_home``ディレクトリをローカルマシンの``$HOME``ディレクトリ内の``jenkins``サブディレクトリにマップします。通常は``/Users/<your-username>/jenkins``または``/home/<your-username>/jenkins``。このためにソースボリュームまたはディレクトリを変更する場合は、上記の``docker:dind``コンテナのボリュームをこれに一致するように更新する必要があることに注意してください。
+<9> ``/certs/client``ディレクトリを以前に作成した``jenkins-docker-certs``ボリュームにマップします。これにより、Dockerデーモンに接続するために必要なクライアントTLS証明書が、``DOCKER_CERT_PATH``環境変数で指定されたパスで使用できるようになります。
+<10> 前の手順で作成したDockerイメージの名前。
+
+== 初期設定
+
+https://www.jenkins.io/doc/book/installing/docker/#setup-wizard に従う。
+
+=== Unlock Jenkins
+
+http://{jenkins-web-server-host-addr}:{jenkins-port}/ にアクセスする。
+adminユーザの初期パスワードを入力する。
+
+初期パスワードはコンテナ内の``/var/jenkins_home/secrets/initialAdminPassword``に記載されている。
+
+ファイルの内容を表示するには、``docker exec コンテナ名 cat /var/jenkins_home/secrets/initialAdminPassword``を実行する。
+あるいは以下の手順で実行中のコンテナに接続して表示してもよい。
 
 // "nowrap"で長い行の折り返しを無効にする
 [source, bash, options="linenums,nowrap"]
@@ -81,13 +165,6 @@ b528f9670cf44323917d05f83af7108d
 $ exit
 ----
 
-== 初期設定
-
-=== Unlock Jenkins
-
-http://{jenkins-web-server-host-addr}:{jenkins-port}/ にアクセスする。
-adminユーザの初期パスワードを入力する。
-
 === Customize Jenkins
 
 "Install suggested plugins"を選択する。
@@ -107,43 +184,6 @@ adminユーザの初期パスワードを入力する。
 
 JenkinsのURLを指定する。
 ここでは外部に公開しないので http://{jenkins-web-server-host-addr}:{jenkins-port}/ とする。
-
-[appendix]
-== Jenkinsノード内でDockerコマンドを実行する
-
-Docker内部のコンテナでJenkinsを実行しているとき、JenkinsからDockerコマンドを実行するには、以下のコマンドを実行する。
-コマンドの説明は https://www.jenkins.io/doc/book/installing/docker/#on-macos-and-linux をGoogle翻訳により翻訳したものである。
-
-NOTE: どういう操作をしているのかよくわかってない。
-
-[source, bash, linenums]
-----
-docker run \
-  --name jenkins-docker \# <1>
-  --rm \# <2>
-  --detach \# <3>
-  --privileged \# <4>
-  --network jenkins \# <5>
-  --network-alias docker \# <6>
-  --env DOCKER_TLS_CERTDIR=/certs \#<7>
-  --volume jenkins-docker-certs:/certs/client \# <8>
-  --volume jenkins-data:/var/jenkins_home \# <9>
-  --publish 2376:2376 \# <10>
-  docker:dind \# <11>
-  --storage-driver overlay2 # <12>
-----
-<1> (オプション) イメージの実行に使用する Docker コンテナー名を指定します。デフォルトでは、Docker はコンテナーの一意の名前を生成します。
-<2> (オプション) シャットダウン時に Docker コンテナ (Docker イメージのインスタンス) を自動的に削除します。
-<3> (オプション) バックグラウンドで Docker コンテナーを実行します。このインスタンスは、後で `docker stop jenkins-docker` を実行して停止できます。
-<4> DockerでDockerを実行するには、現在、正しく機能するために特権アクセスが必要です。この要件は、新しいLinuxカーネルバージョンで緩和される可能性があります。
-<5> これは、前の手順で作成したネットワークに対応しています。
-<6> Docker コンテナー内の Docker を `jenkins` ネットワーク内のホスト名 `docker` として使用できるようにします。
-<7> Docker サーバーでの TLS の使用を有効にします。特権コンテナーを使用するため、これをお勧めしますが、以下で説明する共有ボリュームを使用する必要があります。この環境変数は、Docker TLS 証明書が管理されるルート ディレクトリを制御します。
-<8> コンテナ内の `/certs/client` ディレクトリを、上記で作成した `jenkins-docker-certs` という名前のDockerボリュームにマップします。
-<9> コンテナ内の `/var/jenkins_home` ディレクトリを `jenkins-data` という名前のDockerボリュームにマップします。これにより、このDockerコンテナのDockerデーモンによって制御される他のDockerコンテナがJenkinsからデータをマウントできるようになります。
-<10> （オプション）ホストマシンのDockerデーモンポートを公開します。これは、ホストマシンで `docker` コマンドを実行して、この内部Dockerデーモンを制御する場合に役立ちます。
-<11> `docker:dind` イメージ自体。このイメージは、コマンド `docker image pull docker:dind` を使用して、実行する前にダウンロードできます。
-<12> Docker ボリュームのストレージドライバー。サポートされているオプションについては、「Dockerストレージドライバー」を参照してください。
 
 [bibliography]
 == 参考文献
