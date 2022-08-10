@@ -17,24 +17,20 @@ node 開発用PC {
     component Dockerデーモン as docker_daemon
     frame コンテナネットワーク {
         node Giteaコンテナ as gitea_container {
-            component Gitea {
-                portin 3000番ポート as gitea_port
-            }
+            component Gitea
         }
         node Jenkinsコンテナ as jenkins_container {
-            component Jenkins {
-                portin 8080番ポート as jenkins_port
-            }
+            component Jenkins
         }
     }
     component Webブラウザ as web_browser
 }
-git_repo <--> gitea_port: git push / git pull
-docker_daemon --> jenkins_container: docker run
+git_repo <--> Gitea: git push / git pull
+docker_daemon ---> jenkins_container: docker run
 docker_daemon ---> gitea_container: docker run
-Gitea -> jenkins_port: push時にWebhook実行
-web_browser ---> gitea_port: ダッシュボードにアクセス
-web_browser ---> jenkins_port: ダッシュボードにアクセス
+Gitea --> Jenkins: push時にWebhook実行
+web_browser ---> Gitea: ダッシュボードにアクセス
+web_browser ---> Jenkins: ダッシュボードにアクセス
 @enduml
 ----
 
