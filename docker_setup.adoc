@@ -101,7 +101,7 @@ dockerd-rootless-setuptool.sh install
 .``dockerd-rootless-setuptool.sh install``の出力
 [%collapsible]
 ====
-[source, console, linenums]
+[source, console, options="linenums,nowrap"]
 ----
 toshi@toshi-FMVS90TRD2:~$ dockerd-rootless-setuptool.sh install
 [INFO] Creating /home/toshi/.config/systemd/user/docker.service
@@ -225,7 +225,7 @@ docker run hello-world
 .上記コマンドの実行結果
 [%collapsible]
 ====
-[source, console, linenums]
+[source, console, options="linenums,nowrap"]
 ----
 toshi@toshi-FMVS90TRD2:~$ docker run hello-world
 Unable to find image 'hello-world:latest' locally
