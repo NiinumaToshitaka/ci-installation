@@ -1,0 +1,45 @@
+= Docker+Jenkins+GiteaによるCI環境構築
+include::base_attributes.adoc[]
+
+本書では、Docker, Jenkins, Giteaを使用して、CI環境を構築する手順を説明する。
+
+== システム構成
+
+本書で構築するシステムの構成図を以下に示す。
+
+[plantuml, system-configuration, svg]
+.システム構成図
+----
+@startuml
+left to right direction
+node 開発用PC {
+    database Gitリポジトリ as git_repo
+    component Dockerデーモン as docker_daemon
+    frame コンテナネットワーク {
+        node Giteaコンテナ as gitea_container {
+            component Gitea {
+                portin 3000番ポート as gitea_port
+            }
+        }
+        node Jenkinsコンテナ as jenkins_container {
+            component Jenkins {
+                portin 8080番ポート as jenkins_port
+            }
+        }
+    }
+    component Webブラウザ as web_browser
+}
+git_repo <--> gitea_port: git push / git pull
+docker_daemon --> jenkins_container: docker run
+docker_daemon ---> gitea_container: docker run
+Gitea -> jenkins_port: push時にWebhook実行
+web_browser ---> gitea_port: ダッシュボードにアクセス
+web_browser ---> jenkins_port: ダッシュボードにアクセス
+@enduml
+----
+
+include::docker_setup.adoc[leveloffset=+1]
+
+include::jenkins_setup.adoc[leveloffset=+1]
+
+include::gitea_setup.adoc[leveloffset=+1]
