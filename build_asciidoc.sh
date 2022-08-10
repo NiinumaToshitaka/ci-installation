@@ -7,7 +7,7 @@ target_file=top.adoc
 # 出力ファイルの拡張子を除いたファイル名
 output_basename="Docker+Jenkins+GiteaによるCI環境構築"
 # ビルド後のファイルを格納するディレクトリ
-readonly destination=build/
+readonly destination=output/
 # 変換後のAsciiDocファイルに情報を埋め込む対象のコミット
 readonly target_commit=HEAD
 # コミットID
