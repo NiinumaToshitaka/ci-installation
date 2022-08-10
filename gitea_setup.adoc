@@ -138,7 +138,10 @@ ID:: よしなに入力する。認証情報を識別するのに使用する。
 
 === Giteaでの設定
 
-. ++{gitea-url}/ユーザ名/リポジトリ名/settings/hooks++ を開く
+// URLには自動的にハイパーリンクを設定させたくないが、
+// 単純に"pass"するとアトリビュートの置換も無効になってしまうので、
+// "pass:attributes"によりアトリビュートの置換のみ有効にする。
+. pass:attributes[{gitea-url}/ユーザ名/リポジトリ名/settings/hooks] を開く
 . btn:[Webhookを追加] -> Gitea を選択
 . 次のとおり設定
 +
