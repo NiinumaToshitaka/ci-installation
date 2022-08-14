@@ -74,7 +74,7 @@ docker run \
 
 . 以下の内容でDockerfileを作成する
 +
-[source, dockerfile, linenums]
+[source, dockerfile, options="linenums,nowrap"]
 .Dockerfile
 ----
 FROM jenkins/jenkins:2.346.2-jdk11
@@ -184,6 +184,28 @@ $ exit
 
 JenkinsのURLを指定する。
 ここでは外部に公開しないので http://{jenkins-web-server-host-addr}:{jenkins-port}/ とする。
+
+== メモ
+
+=== Dockerコンテナ内でDockerコンテナを実行できない
+
+上で実行した `jenkins-blueocean` で `docker run` すると、以下のようにエラーが発生してコンテナを実行できない。
+これだとJenkinsのジョブでDockerコマンドを実行することができない。
+[source, console, options="linenums,nowrap"]
+----
+jenkins@7f06bfe79c98:/$ docker run hello-world
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+2db29710123e: Pull complete
+Digest: sha256:7d246653d0511db2a6b2e0436cfd0e52ac8c066000264b3ce63331ac66dca625
+Status: Downloaded newer image for hello-world:latest
+docker: Error response from daemon: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: unable to apply cgroup configuration: mkdir /sys/fs/cgroup/cpuset/docker: permission denied: unknown.
+ERRO[0007] error waiting for container: context canceled
+----
+ディレクトリへの書き込み権限がないためにエラーになっているので、DockerデーモンをRootlessモードで実行しているのが原因？
+
+dind(Docker in Docker)はあまり推奨されていないようなので、素直にJenkinsコンテナ内に直接実行環境を構築するのがいいかもしれない。
+あるいはJenkinsスレーブのコンテナを作成して、その中に実行環境を構築するとか。
 
 [bibliography]
 == 参考文献
